@@ -70,6 +70,7 @@ document.addEventListener("DOMContentLoaded", () => {
           details.participants.forEach((p) => {
             const li = document.createElement("li");
             li.className = "participant";
+            li.dataset.email = p;
 
             const avatar = document.createElement("span");
             avatar.className = "avatar";
@@ -79,8 +80,55 @@ document.addEventListener("DOMContentLoaded", () => {
             nameSpan.className = "participant-name";
             nameSpan.textContent = p;
 
+            // Delete (unregister) button
+            const delBtn = document.createElement("button");
+            delBtn.className = "participant-delete";
+            delBtn.title = `Unregister ${p}`;
+            delBtn.setAttribute('aria-label', `Unregister ${p}`);
+            delBtn.innerHTML = `
+              <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <path d="M3 6h18" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M8 6v14a2 2 0 0 0 2 2h4a2 2 0 0 0 2-2V6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M10 11v6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M14 11v6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            `;
+
+            delBtn.addEventListener("click", async (evt) => {
+              evt.preventDefault();
+              evt.stopPropagation();
+              const email = p;
+              const activityName = name;
+              try {
+                const resp = await fetch(`/activities/${encodeURIComponent(activityName)}/participants?email=${encodeURIComponent(email)}`, {
+                  method: "DELETE",
+                });
+
+                const result = await resp.json();
+
+                if (resp.ok) {
+                  // Refresh the whole activities list to update counts and participants
+                  fetchActivities();
+                  messageDiv.textContent = result.message || `Unregistered ${email}`;
+                  messageDiv.className = "success";
+                } else {
+                  messageDiv.textContent = result.detail || `Failed to unregister ${email}`;
+                  messageDiv.className = "error";
+                }
+                messageDiv.classList.remove("hidden");
+                setTimeout(() => messageDiv.classList.add("hidden"), 4000);
+              } catch (error) {
+                messageDiv.textContent = `Failed to unregister ${email}.`;
+                messageDiv.className = "error";
+                messageDiv.classList.remove("hidden");
+                console.error("Error unregistering:", error);
+              }
+            });
+
             li.appendChild(avatar);
             li.appendChild(nameSpan);
+            li.appendChild(delBtn);
             ul.appendChild(li);
           });
 
@@ -129,6 +177,8 @@ document.addEventListener("DOMContentLoaded", () => {
         messageDiv.textContent = result.message;
         messageDiv.className = "success";
         signupForm.reset();
+        // Refresh activities so UI shows the newly added participant
+        fetchActivities();
       } else {
         messageDiv.textContent = result.detail || "An error occurred";
         messageDiv.className = "error";
